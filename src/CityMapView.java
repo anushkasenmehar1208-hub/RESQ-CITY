@@ -1,10 +1,6 @@
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.ArrayList;
 
 import javafx.animation.Animation;
-import javafx.animation.Interpolator;
 import javafx.animation.SequentialTransition;
 import javafx.animation.TranslateTransition;
 import javafx.scene.control.Label;
@@ -12,64 +8,46 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
-import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
 
 public class CityMapView extends Pane {
 
-    private final City city;
-
-    private final Map<EmergencyVehicle, Circle> vehicleMarkers = new HashMap<>();
-
-    private final Circle ambulance = new Circle(12, Color.LIMEGREEN);
-    private final Circle emergencyMarker = new Circle(14, Color.RED);
-
+    private City city;
+    private Circle ambulance = new Circle(10, Color.LIMEGREEN);
+    private Circle emergency = new Circle(12, Color.RED);
     private SequentialTransition movement;
     private Runnable roadChangeListener;
 
     public CityMapView(City city) {
         this.city = city;
-
         setPrefSize(1000, 650);
         setStyle("-fx-background-color: #142033;");
-
+        emergency.setVisible(false);
         drawMap();
     }
 
     public void setRoadChangeListener(Runnable listener) {
-        this.roadChangeListener = listener;
+        roadChangeListener = listener;
     }
 
     public void drawMap() {
         getChildren().clear();
 
         for (Road road : city.getAllRoads()) {
-
             Location start = road.getStart();
             Location end = road.getEnd();
 
-            Line line = new Line(
-                start.getX(),
-                start.getY(),
-                end.getX(),
-                end.getY()
-            );
-
-            line.setStroke(
-                road.isBlocked() ? Color.RED : Color.GRAY
-            );
-
+            Line line = new Line(start.getX(), start.getY(), end.getX(), end.getY());
+            line.setStroke(road.isBlocked() ? Color.RED : Color.GRAY);
             line.setStrokeWidth(7);
 
             line.setOnMouseClicked(event -> {
-
                 if (isMoving()) {
                     return;
                 }
 
                 road.setBlocked(!road.isBlocked());
-
                 drawMap();
 
                 if (roadChangeListener != null) {
@@ -79,188 +57,76 @@ public class CityMapView extends Pane {
 
             getChildren().add(line);
 
-            double dx = end.getX() - start.getX();
-            double dy = end.getY() - start.getY();
-            double length = Math.hypot(dx, dy);
+            String traffic = "Low";
 
-            double offsetX = length > 0 ? -dy / length * 18 : 0;
-            double offsetY = length > 0 ? dx / length * 18 : -18;
+            if (road.getTrafficMultiplier() >= 2.0) {
+                traffic = "Heavy";
+            } else if (road.getTrafficMultiplier() >= 1.5) {
+                traffic = "Medium";
+            }
 
-            String details;
-            String accent;
+            String info;
 
             if (road.isBlocked()) {
-
-                details = String.format(
-                    Locale.US,
-                    "%.1f km | BLOCKED | ∞",
-                    road.getDistance()
-                );
-
-                accent = "#ff6464";
-
+                info = road.getDistance() + " km | BLOCKED";
             } else {
-
-                double multiplier = road.getTrafficMultiplier();
-
-                String traffic;
-
-                if (multiplier < 1.5) {
-                    traffic = "Low";
-                    accent = "#54df92";
-                } else if (multiplier < 2.0) {
-                    traffic = "Medium";
-                    accent = "#ffd166";
-                } else {
-                    traffic = "Heavy";
-                    accent = "#ff6464";
-                }
-
-                details = String.format(
-                    Locale.US,
-                    "%.1f km | %s | %d s",
-                    road.getDistance(),
-                    traffic,
-                    Math.round(road.calculateTravelTime())
-                );
+                info = road.getDistance() + " km | " + traffic + " | "
+                    + Math.round(road.calculateTravelTime()) + " s";
             }
 
-            Label roadDetails = new Label(details);
+            Label label = new Label(info);
+            label.setTextFill(Color.WHITE);
+            label.setStyle("-fx-background-color: #25354c; -fx-padding: 3;");
+            label.setMouseTransparent(true);
 
-            roadDetails.setFont(Font.font(11));
-            roadDetails.setTextFill(Color.WHITE);
+            double x = (start.getX() + end.getX()) / 2;
+            double y = (start.getY() + end.getY()) / 2 - 20;
 
-            roadDetails.setStyle(
-                "-fx-background-color: rgba(10, 18, 32, 0.88);" +
-                "-fx-background-radius: 4;" +
-                "-fx-padding: 2 5 2 5;" +
-                "-fx-border-color: " + accent + ";" +
-                "-fx-border-width: 0 0 2 0;"
-            );
+            if (road.getId() == 101) {
+                x = x - 25;
+                y = y + 42;
+            }
 
-            roadDetails.setMouseTransparent(true);
+            label.setLayoutX(x);
+            label.setLayoutY(y);
 
-            roadDetails.applyCss();
-            roadDetails.autosize();
-
-            double midX = (start.getX() + end.getX()) / 2;
-            double midY = (start.getY() + end.getY()) / 2;
-
-            roadDetails.setLayoutX(
-                midX + offsetX - roadDetails.prefWidth(-1) / 2
-            );
-
-            roadDetails.setLayoutY(
-                midY + offsetY - roadDetails.prefHeight(-1) / 2
-            );
-
-            getChildren().add(roadDetails);
+            getChildren().add(label);
         }
 
-        for (Location location : city.getAllLocations()) {
-
-            Circle circle = new Circle(
-                location.getX(),
-                location.getY(),
-                12
-            );
-
-            circle.setFill(Color.DODGERBLUE);
+        for (Location place : city.getAllLocations()) {
+            Circle circle = new Circle(place.getX(), place.getY(), 12, Color.DODGERBLUE);
             circle.setStroke(Color.WHITE);
 
-            Text label = new Text(
-                location.getX() + 15,
-                location.getY() - 15,
-                location.getName()
+            Text name = new Text(
+                place.getX() + 15,
+                place.getY() - 15,
+                place.getName()
             );
 
-            label.setFill(Color.WHITE);
-            label.setFont(Font.font(14));
-
-            getChildren().addAll(circle, label);
+            name.setFill(Color.WHITE);
+            getChildren().addAll(circle, name);
         }
 
-        getChildren().add(emergencyMarker);
-
-        if (vehicleMarkers.isEmpty()) {
-
-            getChildren().add(ambulance);
-            ambulance.toFront();
-
-        } else {
-
-            getChildren().addAll(vehicleMarkers.values());
-
-            for (Circle marker : vehicleMarkers.values()) {
-                marker.toFront();
-            }
-        }
-
-        emergencyMarker.toFront();
+        getChildren().addAll(ambulance, emergency);
+        ambulance.toFront();
+        emergency.toFront();
     }
 
-    public void addVehicle(EmergencyVehicle vehicle) {
-
-        if (vehicle == null || vehicleMarkers.containsKey(vehicle)) {
-            return;
-        }
-
-        Color color;
-
-        if (vehicle instanceof FireTruck) {
-            color = Color.ORANGERED;
-        } else if (vehicle instanceof PoliceCar) {
-            color = Color.DEEPSKYBLUE;
-        } else {
-            color = Color.LIMEGREEN;
-        }
-
-        Circle marker = new Circle(10, color);
-        marker.setStroke(Color.WHITE);
-
-        vehicleMarkers.put(vehicle, marker);
-
-        setVehiclePosition(vehicle, vehicle.getCurrentLocation());
-
-        drawMap();
-    }
-
-    public void setVehiclePosition(
-            EmergencyVehicle vehicle,
-            Location location) {
-
-        Circle marker = vehicleMarkers.get(vehicle);
-
-        if (marker == null || location == null) {
-            return;
-        }
-
-        marker.setCenterX(location.getX());
-        marker.setCenterY(location.getY());
-
-        marker.setTranslateX(0);
-        marker.setTranslateY(0);
-    }
-
-    public void setAmbulancePosition(Location location) {
-
-        ambulance.setCenterX(location.getX());
-        ambulance.setCenterY(location.getY());
-
+    public void setAmbulancePosition(Location place) {
+        ambulance.setCenterX(place.getX());
+        ambulance.setCenterY(place.getY());
         ambulance.setTranslateX(0);
         ambulance.setTranslateY(0);
     }
 
-    public void setEmergencyPosition(Location location) {
-
-        emergencyMarker.setCenterX(location.getX());
-        emergencyMarker.setCenterY(location.getY());
-
-        emergencyMarker.setVisible(true);
+    public void setEmergencyPosition(Location place) {
+        emergency.setCenterX(place.getX());
+        emergency.setCenterY(place.getY());
+        emergency.setVisible(true);
     }
 
     public void hideEmergency() {
-        emergencyMarker.setVisible(false);
+        emergency.setVisible(false);
     }
 
     public boolean isMoving() {
@@ -268,112 +134,34 @@ public class CityMapView extends Pane {
             && movement.getStatus() == Animation.Status.RUNNING;
     }
 
-    public void animateRoute(
-            EmergencyVehicle vehicle,
-            List<Location> route,
-            Runnable onArrival) {
-
-        Circle marker = vehicleMarkers.get(vehicle);
-
-        if (marker == null || route == null ||
-                route.isEmpty() || isMoving()) {
-            return;
-        }
-
-        setVehiclePosition(vehicle, route.get(0));
-
-        movement = new SequentialTransition();
-
-        for (int i = 1; i < route.size(); i++) {
-
-            Location start = route.get(i - 1);
-            Location end = route.get(i);
-
-            double dx = end.getX() - start.getX();
-            double dy = end.getY() - start.getY();
-
-            double distance = Math.hypot(dx, dy);
-
-            double seconds = Math.max(
-                0.5,
-                distance / 120.0
-            );
-
-            TranslateTransition transition =
-                new TranslateTransition(
-                    Duration.seconds(seconds),
-                    marker
-                );
-
-            transition.setByX(dx);
-            transition.setByY(dy);
-
-            transition.setInterpolator(Interpolator.LINEAR);
-
-            movement.getChildren().add(transition);
-        }
-
-        movement.setOnFinished(event -> {
-
-            Location destination = route.get(route.size() - 1);
-
-            setVehiclePosition(vehicle, destination);
-            vehicle.setCurrentLocation(destination);
-
-            if (onArrival != null) {
-                onArrival.run();
-            }
-        });
-
-        movement.play();
-    }
-
-    public void animateRoute(
-            List<Location> route,
-            Runnable onArrival) {
-
+    public void animateRoute(ArrayList<Location> route, Runnable onArrival) {
         if (route == null || route.isEmpty() || isMoving()) {
             return;
         }
 
         setAmbulancePosition(route.get(0));
-
         movement = new SequentialTransition();
 
         for (int i = 1; i < route.size(); i++) {
-
             Location start = route.get(i - 1);
             Location end = route.get(i);
 
-            double dx = end.getX() - start.getX();
-            double dy = end.getY() - start.getY();
+            double x = end.getX() - start.getX();
+            double y = end.getY() - start.getY();
+            double seconds = Math.max(0.5, Math.hypot(x, y) / 120);
 
-            double distance = Math.hypot(dx, dy);
-
-            double seconds = Math.max(
-                0.5,
-                distance / 120.0
+            TranslateTransition step = new TranslateTransition(
+                Duration.seconds(seconds),
+                ambulance
             );
 
-            TranslateTransition transition =
-                new TranslateTransition(
-                    Duration.seconds(seconds),
-                    ambulance
-                );
-
-            transition.setByX(dx);
-            transition.setByY(dy);
-
-            transition.setInterpolator(Interpolator.LINEAR);
-
-            movement.getChildren().add(transition);
+            step.setByX(x);
+            step.setByY(y);
+            movement.getChildren().add(step);
         }
 
         movement.setOnFinished(event -> {
-
-            Location destination = route.get(route.size() - 1);
-
-            setAmbulancePosition(destination);
+            setAmbulancePosition(route.get(route.size() - 1));
 
             if (onArrival != null) {
                 onArrival.run();

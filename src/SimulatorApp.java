@@ -1,4 +1,4 @@
-import java.util.List;
+import java.util.ArrayList;
 
 import javafx.application.Application;
 import javafx.geometry.Insets;
@@ -21,105 +21,58 @@ public class SimulatorApp extends Application {
 
         City city = new City("RESQ CITY");
 
-        Location hospital = new Location(
-            1, "Central Hospital", 150, 150
-        );
-
-        Location junctionA = new Location(
-            2, "Junction A", 350, 150
-        );
-
-        Location junctionB = new Location(
-            3, "Junction B", 350, 350
-        );
-
-        Location fireStation = new Location(
-            4, "Fire Station", 600, 150
-        );
-
-        Location mall = new Location(
-            5, "Shopping Mall", 600, 350
-        );
+        
+        Location hospital = new Location(1, "Central Hospital", 150, 150);
+        Location junctionA = new Location(2, "Junction A", 350, 150);
+        Location junctionB = new Location(3, "Junction B", 350, 350);
+        Location station = new Location(4, "Station", 600, 150);
+        Location mall = new Location(5, "Shopping Mall", 600, 350);
 
         city.addLocation(hospital);
         city.addLocation(junctionA);
         city.addLocation(junctionB);
-        city.addLocation(fireStation);
+        city.addLocation(station);
         city.addLocation(mall);
 
-        city.addRoad(new Road(
-            101, hospital, junctionA, 2.0, 60
-        ));
+        
+        city.addRoad(new Road(101, hospital, junctionA, 2.0, 60));
+        city.addRoad(new Road(102, junctionA, junctionB, 3.0, 60));
+        city.addRoad(new Road(103, junctionA, station, 1.5, 40));
+        city.addRoad(new Road(104, junctionB, mall, 2.0, 40));
+        city.addRoad(new Road(105, station, mall, 2.0, 40));
 
-        city.addRoad(new Road(
-            102, junctionA, junctionB, 3.0, 60
-        ));
-
-        city.addRoad(new Road(
-            103, junctionA, fireStation, 1.5, 40
-        ));
-
-        city.addRoad(new Road(
-            104, junctionB, mall, 2.0, 40
-        ));
-
-        city.addRoad(new Road(
-            105, fireStation, mall, 2.0, 40
-        ));
-
+        
         Ambulance ambulance = new Ambulance(
             1, "Ambulance A", hospital
         );
 
-        FireTruck fireTruck = new FireTruck(
-            2, "Fire Truck A", fireStation
-        );
+        
+        DispatchManager manager = new DispatchManager(city);
+        manager.addAmbulance(ambulance);
 
-        PoliceCar policeCar = new PoliceCar(
-            3, "Police Car A", junctionB
-        );
-
-        DispatchManager dispatchManager =
-            new DispatchManager(city);
-
-        dispatchManager.addVehicle(ambulance);
-        dispatchManager.addVehicle(fireTruck);
-        dispatchManager.addVehicle(policeCar);
-
+        
         CityMapView map = new CityMapView(city);
-
-        map.addVehicle(ambulance);
-        map.addVehicle(fireTruck);
-        map.addVehicle(policeCar);
-
+        map.setAmbulancePosition(hospital);
         map.hideEmergency();
 
         PathFinder pathFinder = new PathFinder();
 
+        
         Label heading = new Label(
-            "RESQ CITY - Emergency Response Simulator"
+            "RESQ CITY - Ambulance Simulator"
         );
 
         heading.setStyle(
-            "-fx-font-size: 22px;"
-            + "-fx-font-weight: bold;"
+            "-fx-font-size: 22px; -fx-font-weight: bold;"
         );
 
+        
         Label status = new Label(
             "System ready. Waiting for emergency..."
         );
 
-        ComboBox<EmergencyType> typeBox =
-            new ComboBox<>();
-
-        typeBox.getItems().addAll(
-            EmergencyType.values()
-        );
-
-        typeBox.setValue(EmergencyType.MEDICAL);
-
-        ComboBox<Location> locationBox =
-            new ComboBox<>();
+        
+        ComboBox<Location> locationBox = new ComboBox<>();
 
         locationBox.getItems().addAll(
             city.getAllLocations()
@@ -127,88 +80,80 @@ public class SimulatorApp extends Application {
 
         locationBox.setValue(mall);
 
+        
         Button dispatchButton = new Button(
-            "Dispatch Vehicle"
+            "Dispatch Ambulance"
         );
 
         Button resetButton = new Button(
-            "Reset Vehicles"
+            "Reset Ambulance"
         );
 
+        
         dispatchButton.setOnAction(event -> {
 
             if (dispatching) {
                 return;
             }
 
-            EmergencyType selectedType = typeBox.getValue();
             Location destination = locationBox.getValue();
 
-            if (destination == null || selectedType == null) {
-                status.setText(
-                    "Select an emergency type and location."
-                );
+            if (destination == null) {
+                status.setText("Select an emergency location.");
                 return;
             }
 
+            
             Emergency emergency = new Emergency(
-                nextEmergencyId++,
-                selectedType,
-                destination,
-                3
+                nextEmergencyId++, destination
             );
 
-            EmergencyVehicle selected =
-                dispatchManager.dispatch(emergency);
+            
+            Ambulance selected = manager.dispatch(emergency);
 
             if (selected == null) {
-
                 status.setText(
-                    "No available compatible vehicle can reach "
+                    "No ambulance available or no route to "
                     + destination.getName()
                 );
-
                 return;
             }
 
-            List<Location> route =
-                pathFinder.findFastestPath(
-                    city,
-                    selected.getCurrentLocation(),
-                    destination
-                );
+            
+            ArrayList<Location> route = pathFinder.findFastestPath(
+                city,
+                selected.getCurrentLocation(),
+                destination
+            );
 
             if (route.isEmpty()) {
-
                 selected.setAvailable(true);
 
                 status.setText(
-                    "No available route to "
-                    + destination.getName()
+                    "No route to " + destination.getName()
                 );
 
                 return;
             }
 
+            
             map.setEmergencyPosition(destination);
 
             dispatching = true;
 
+            
             dispatchButton.setDisable(true);
             resetButton.setDisable(true);
-
-            typeBox.setDisable(true);
             locationBox.setDisable(true);
 
             status.setText(
                 selected.getName()
                 + " dispatched to "
                 + destination.getName()
-                + " for "
-                + selectedType
             );
 
-            map.animateRoute(selected, route, () -> {
+            
+            map.animateRoute(route, () -> {
 
                 selected.setCurrentLocation(destination);
                 selected.setAvailable(true);
@@ -219,23 +164,20 @@ public class SimulatorApp extends Application {
 
                 dispatching = false;
 
+                
                 dispatchButton.setDisable(false);
                 resetButton.setDisable(false);
-
-                typeBox.setDisable(false);
                 locationBox.setDisable(false);
 
                 status.setText(
-                    selected.getName()
-                    + " resolved "
-                    + selectedType
-                    + " at "
+                    "Emergency resolved at "
                     + destination.getName()
-                    + ". Vehicle available again!"
+                    + "!"
                 );
             });
         });
 
+       
         resetButton.setOnAction(event -> {
 
             if (dispatching) {
@@ -243,49 +185,41 @@ public class SimulatorApp extends Application {
             }
 
             ambulance.setCurrentLocation(hospital);
-            fireTruck.setCurrentLocation(fireStation);
-            policeCar.setCurrentLocation(junctionB);
-
             ambulance.setAvailable(true);
-            fireTruck.setAvailable(true);
-            policeCar.setAvailable(true);
 
-            map.setVehiclePosition(ambulance, hospital);
-            map.setVehiclePosition(fireTruck, fireStation);
-            map.setVehiclePosition(policeCar, junctionB);
-
+            map.setAmbulancePosition(hospital);
             map.hideEmergency();
 
             status.setText(
-                "All vehicles returned to their starting locations."
+                "Ambulance returned to the hospital."
             );
         });
 
+        
         map.setRoadChangeListener(() -> {
 
             status.setText(
-                "Road status updated. "
-                + "Red roads are blocked."
+                "Road status updated. Red roads are blocked."
             );
         });
 
+        
         HBox controls = new HBox(
             12,
-            new Label("Emergency:"),
-            typeBox,
-            new Label("Location:"),
+            new Label("Emergency Location:"),
             locationBox,
             dispatchButton,
             resetButton
         );
 
+        
         VBox dashboard = new VBox(
             12,
             heading,
             controls,
             status,
             new Label(
-                "Green: Ambulance | Orange: Fire Truck | Blue: Police Car"
+                "Green: Ambulance | Red: Emergency"
             ),
             new Label(
                 "Tip: Click any road to block or unblock it."
@@ -294,19 +228,17 @@ public class SimulatorApp extends Application {
 
         dashboard.setPadding(new Insets(20));
 
+        
         BorderPane root = new BorderPane();
 
         root.setTop(dashboard);
         root.setCenter(map);
 
-        Scene scene = new Scene(
-            root,
-            1050,
-            780
-        );
+        
+        Scene scene = new Scene(root, 1050, 780);
 
         stage.setTitle(
-            "RESQ CITY - Emergency Response Simulator"
+            "RESQ CITY - Ambulance Simulator"
         );
 
         stage.setScene(scene);

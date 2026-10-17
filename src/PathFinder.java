@@ -1,98 +1,65 @@
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.PriorityQueue;
 
 public class PathFinder {
 
-    private static class QueueEntry {
-        final Location location;
-        final double travelTime;
+    public ArrayList<Location> findFastestPath(City city, Location start, Location destination) {
 
-        QueueEntry(Location location, double travelTime) {
-            this.location = location;
-            this.travelTime = travelTime;
-        }
-    }
+        HashMap<Location, Double> times = new HashMap<>();
+        HashMap<Location, Location> previous = new HashMap<>();
+        ArrayList<Location> visited = new ArrayList<>();
+        ArrayList<Location> path = new ArrayList<>();
 
-    public List<Location> findFastestPath(
-            City city, Location start, Location destination) {
-
-        if (city == null || start == null || destination == null) {
-            throw new IllegalArgumentException("Arguments cannot be null");
+        for (Location place : city.getAllLocations()) {
+            times.put(place, Double.POSITIVE_INFINITY);
         }
 
-        if (city.getLocation(start.getId()) != start
-                || city.getLocation(destination.getId()) != destination) {
-            throw new IllegalArgumentException(
-                "Locations must belong to the city"
-            );
-        }
+        times.put(start, 0.0);
 
-        Map<Location, Double> distances = new HashMap<>();
-        Map<Location, Location> previous = new HashMap<>();
+        while (true) {
 
-        PriorityQueue<QueueEntry> queue = new PriorityQueue<>(
-            Comparator.comparingDouble(entry -> entry.travelTime)
-        );
+            Location current = null;
+            double shortest = Double.POSITIVE_INFINITY;
 
-        for (Location location : city.getAllLocations()) {
-            distances.put(location, Double.POSITIVE_INFINITY);
-        }
+            for (Location place : city.getAllLocations()) {
 
-        distances.put(start, 0.0);
-        queue.add(new QueueEntry(start, 0.0));
-
-        while (!queue.isEmpty()) {
-
-            QueueEntry entry = queue.poll();
-            Location current = entry.location;
-
-            if (entry.travelTime > distances.get(current)) {
-                continue;
+                if (!visited.contains(place) && times.get(place) < shortest) {
+                    shortest = times.get(place);
+                    current = place;
+                }
             }
 
-            if (current == destination) {
+            if (current == null || current == destination) {
                 break;
             }
 
+            visited.add(current);
+
             for (Road road : city.getConnectedRoads(current.getId())) {
 
-                if (road.isBlocked()) {
-                    continue;
-                }
+                if (!road.isBlocked()) {
 
-                Location neighbor = road.getOtherEnd(current);
+                    Location next = road.getOtherEnd(current);
+                    double newTime = times.get(current) + road.calculateTravelTime();
 
-                double newDistance =
-                    entry.travelTime + road.calculateTravelTime();
-
-                if (newDistance < distances.get(neighbor)) {
-
-                    distances.put(neighbor, newDistance);
-                    previous.put(neighbor, current);
-
-                    queue.add(new QueueEntry(neighbor, newDistance));
+                    if (newTime < times.get(next)) {
+                        times.put(next, newTime);
+                        previous.put(next, current);
+                    }
                 }
             }
         }
 
-        if (Double.isInfinite(distances.get(destination))) {
-            return Collections.emptyList();
+        if (times.get(destination) == Double.POSITIVE_INFINITY) {
+            return path;
         }
 
-        List<Location> path = new ArrayList<>();
-        Location current = destination;
+        Location place = destination;
 
-        while (current != null) {
-            path.add(current);
-            current = previous.get(current);
+        while (place != null) {
+            path.add(0, place);
+            place = previous.get(place);
         }
-
-        Collections.reverse(path);
 
         return path;
     }
