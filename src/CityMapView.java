@@ -1,11 +1,13 @@
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import javafx.animation.Animation;
 import javafx.animation.Interpolator;
 import javafx.animation.SequentialTransition;
 import javafx.animation.TranslateTransition;
+import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -76,6 +78,83 @@ public class CityMapView extends Pane {
             });
 
             getChildren().add(line);
+
+            double dx = end.getX() - start.getX();
+            double dy = end.getY() - start.getY();
+            double length = Math.hypot(dx, dy);
+
+            double offsetX = length > 0 ? -dy / length * 18 : 0;
+            double offsetY = length > 0 ? dx / length * 18 : -18;
+
+            String details;
+            String accent;
+
+            if (road.isBlocked()) {
+
+                details = String.format(
+                    Locale.US,
+                    "%.1f km | BLOCKED | ∞",
+                    road.getDistance()
+                );
+
+                accent = "#ff6464";
+
+            } else {
+
+                double multiplier = road.getTrafficMultiplier();
+
+                String traffic;
+
+                if (multiplier < 1.5) {
+                    traffic = "Low";
+                    accent = "#54df92";
+                } else if (multiplier < 2.0) {
+                    traffic = "Medium";
+                    accent = "#ffd166";
+                } else {
+                    traffic = "Heavy";
+                    accent = "#ff6464";
+                }
+
+                details = String.format(
+                    Locale.US,
+                    "%.1f km | %s | %d s",
+                    road.getDistance(),
+                    traffic,
+                    Math.round(road.calculateTravelTime())
+                );
+            }
+
+            Label roadDetails = new Label(details);
+
+            roadDetails.setFont(Font.font(11));
+            roadDetails.setTextFill(Color.WHITE);
+
+            roadDetails.setStyle(
+                "-fx-background-color: rgba(10, 18, 32, 0.88);" +
+                "-fx-background-radius: 4;" +
+                "-fx-padding: 2 5 2 5;" +
+                "-fx-border-color: " + accent + ";" +
+                "-fx-border-width: 0 0 2 0;"
+            );
+
+            roadDetails.setMouseTransparent(true);
+
+            roadDetails.applyCss();
+            roadDetails.autosize();
+
+            double midX = (start.getX() + end.getX()) / 2;
+            double midY = (start.getY() + end.getY()) / 2;
+
+            roadDetails.setLayoutX(
+                midX + offsetX - roadDetails.prefWidth(-1) / 2
+            );
+
+            roadDetails.setLayoutY(
+                midY + offsetY - roadDetails.prefHeight(-1) / 2
+            );
+
+            getChildren().add(roadDetails);
         }
 
         for (Location location : city.getAllLocations()) {
