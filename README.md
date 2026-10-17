@@ -114,16 +114,5 @@ RESQ-CITY/
 - Separates the **core Java logic** from the **JavaFX visualization**.
 - Demonstrates extensible object-oriented design through a shared emergency vehicle abstraction.
 
-## 👥 Team
-
-Developed as **RESQ CITY, Group 44**:
-
-- M. Muhammadh
-- M.A.A. Amar
-- A. Gananathan
-- S. Vithuran
-- P. Lenujan
-
----
 
 **RESQ CITY** | Java • JavaFX • Dijkstra's Algorithm • Emergency Response Simulation
